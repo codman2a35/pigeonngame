@@ -1,0 +1,994 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tumbling Pigeon — Taklacı Güvercin</title>
+  <style>
+    :root {
+      --wood-dark: #5c3a1e;
+      --wood-mid: #8b5a2b;
+      --wood-light: #c48a4a;
+      --wood-pale: #e8c48a;
+      --banner-bg: rgba(28, 18, 10, 0.82);
+      --banner-border: #f0c36a;
+      --accent: #ff8c42;
+      --panel-bg: rgba(12, 10, 8, 0.78);
+      --ok: #5dce7a;
+      --bad: #ff6b6b;
+      --text: #fff8ee;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: transparent;
+      font-family: "Segoe UI", "Trebuchet MS", sans-serif;
+      color: var(--text);
+      user-select: none;
+    }
+
+    #stage {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      background: transparent;
+      display: block;
+    }
+
+    #banner {
+      position: fixed;
+      top: 8%;
+      left: 50%;
+      transform: translateX(-50%) translateY(-20px);
+      opacity: 0;
+      pointer-events: none;
+      z-index: 20;
+      min-width: min(90vw, 420px);
+      padding: 14px 22px 12px;
+      border-radius: 18px;
+      background: linear-gradient(180deg, rgba(50, 32, 16, 0.92), var(--banner-bg));
+      border: 2px solid var(--banner-border);
+      box-shadow:
+        0 12px 40px rgba(0, 0, 0, 0.35),
+        inset 0 1px 0 rgba(255, 220, 150, 0.25);
+      text-align: center;
+      transition: opacity 0.35s ease, transform 0.35s ease;
+    }
+
+    #banner.visible {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    #banner .sender {
+      font-size: clamp(16px, 2.4vw, 22px);
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      text-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+    }
+
+    #banner .sender span {
+      color: var(--accent);
+    }
+
+    #banner .flip-line {
+      margin-top: 6px;
+      font-size: clamp(13px, 1.8vw, 16px);
+      opacity: 0.92;
+      font-variant-numeric: tabular-nums;
+    }
+
+    #banner .flip-line strong {
+      color: #ffe09a;
+      font-size: 1.15em;
+    }
+
+    #panel {
+      position: fixed;
+      top: 14px;
+      right: 14px;
+      z-index: 40;
+      width: min(280px, calc(100vw - 28px));
+      padding: 14px;
+      border-radius: 14px;
+      background: var(--panel-bg);
+      border: 1px solid rgba(255, 220, 160, 0.22);
+      backdrop-filter: blur(10px);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+      transition: opacity 0.25s ease, transform 0.25s ease;
+    }
+
+    #panel.hidden-ui {
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(-8px);
+    }
+
+    #panel h2 {
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+      color: #ffe4b0;
+    }
+
+    .status-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 12px;
+      font-size: 12px;
+    }
+
+    .dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: var(--bad);
+      box-shadow: 0 0 8px var(--bad);
+      flex-shrink: 0;
+    }
+
+    .dot.on {
+      background: var(--ok);
+      box-shadow: 0 0 8px var(--ok);
+    }
+
+    #panel button,
+    #panel .custom-row button {
+      width: 100%;
+      margin-top: 6px;
+      padding: 8px 10px;
+      border: 1px solid rgba(255, 210, 140, 0.28);
+      border-radius: 10px;
+      background: linear-gradient(180deg, rgba(255, 170, 80, 0.28), rgba(120, 70, 20, 0.35));
+      color: var(--text);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: filter 0.15s ease, transform 0.1s ease;
+    }
+
+    #panel button:hover {
+      filter: brightness(1.12);
+    }
+
+    #panel button:active {
+      transform: scale(0.98);
+    }
+
+    #panel .hide-btn {
+      background: linear-gradient(180deg, rgba(120, 120, 140, 0.35), rgba(40, 40, 50, 0.45));
+      margin-bottom: 4px;
+    }
+
+    .custom-row {
+      display: flex;
+      gap: 6px;
+      margin-top: 6px;
+    }
+
+    .custom-row input {
+      flex: 1;
+      min-width: 0;
+      padding: 8px 10px;
+      border-radius: 10px;
+      border: 1px solid rgba(255, 210, 140, 0.28);
+      background: rgba(0, 0, 0, 0.35);
+      color: var(--text);
+      font-size: 12px;
+    }
+
+    .custom-row button {
+      width: auto;
+      margin-top: 0;
+      white-space: nowrap;
+      padding-inline: 12px;
+    }
+
+    .hint {
+      margin-top: 10px;
+      font-size: 10px;
+      opacity: 0.55;
+      line-height: 1.35;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="stage"></canvas>
+
+  <div id="banner" aria-live="polite">
+    <div class="sender"><span id="bannerName">Viewer</span> sent <span id="bannerCount">1</span>x Gifts!</div>
+    <div class="flip-line">Flip: <strong id="bannerFlip">0</strong> / <span id="bannerTotal">0</span></div>
+  </div>
+
+  <aside id="panel">
+    <button type="button" class="hide-btn" id="hideBtn">Hide UI (H key)</button>
+    <h2>Tumbling Pigeon</h2>
+    <div class="status-row">
+      <span class="dot" id="wsDot"></span>
+      <span id="wsLabel">Disconnected</span>
+    </div>
+    <button type="button" data-n="1">Simulate 1 Gift (1 Flip)</button>
+    <button type="button" data-n="5">Simulate 5x Combo (5 Flips)</button>
+    <button type="button" data-n="20">Simulate 20x Mega Gift (20 Flips)</button>
+    <div class="custom-row">
+      <input type="number" id="customN" min="1" max="99" value="3" />
+      <button type="button" id="customSend">Send Custom</button>
+    </div>
+    <p class="hint">TikFinity WS: ws://localhost:21213/ · Press H to toggle this panel</p>
+  </aside>
+
+  <script>
+    (() => {
+      "use strict";
+
+      const canvas = document.getElementById("stage");
+      const ctx = canvas.getContext("2d");
+      const bannerEl = document.getElementById("banner");
+      const bannerName = document.getElementById("bannerName");
+      const bannerCount = document.getElementById("bannerCount");
+      const bannerFlip = document.getElementById("bannerFlip");
+      const bannerTotal = document.getElementById("bannerTotal");
+      const panel = document.getElementById("panel");
+      const hideBtn = document.getElementById("hideBtn");
+      const wsDot = document.getElementById("wsDot");
+      const wsLabel = document.getElementById("wsLabel");
+      const customN = document.getElementById("customN");
+      const customSend = document.getElementById("customSend");
+
+      const WS_URL = "ws://localhost:21213/";
+      const RECONNECT_MS = 2500;
+      const FLIP_DURATION = 0.55;
+      const FLY_OUT_DURATION = 0.7;
+      const FLY_HOME_DURATION = 0.85;
+
+      /** @typedef {{ nickname: string, count: number }} GiftEvent */
+
+      /** @type {GiftEvent[]} */
+      const giftQueue = [];
+      let isBusy = false;
+      let panelHidden = false;
+
+      /** @type {AudioContext | null} */
+      let audioCtx = null;
+
+      const state = {
+        phase: "idle",
+        /** @type {GiftEvent | null} */
+        current: null,
+        flipIndex: 0,
+        phaseT: 0,
+        phaseDur: 1,
+        x: 0,
+        y: 0,
+        homeX: 0,
+        homeY: 0,
+        airX: 0,
+        airY: 0,
+        fromX: 0,
+        fromY: 0,
+        toX: 0,
+        toY: 0,
+        rotation: 0,
+        scaleX: 1,
+        scaleY: 1,
+        wingAngle: 0.25,
+        blink: 0,
+        breath: 0,
+        nestPeek: 0.15,
+        particles: /** @type {Particle[]} */ ([]),
+      };
+
+      /**
+       * @typedef {{
+       *   x: number, y: number, vx: number, vy: number,
+       *   life: number, maxLife: number, size: number,
+       *   kind: 'sparkle' | 'feather', rot: number, spin: number, hue: number
+       * }} Particle
+       */
+
+      function resize() {
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        canvas.width = Math.floor(window.innerWidth * dpr);
+        canvas.height = Math.floor(window.innerHeight * dpr);
+        canvas.style.width = `${window.innerWidth}px`;
+        canvas.style.height = `${window.innerHeight}px`;
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        layoutHomes();
+      }
+
+      function layoutHomes() {
+        const w = window.innerWidth;
+        const h = window.innerHeight;
+        state.homeX = w * 0.5;
+        state.homeY = h * 0.82;
+        state.airX = w * 0.5;
+        state.airY = h * 0.28;
+        if (state.phase === "idle") {
+          state.x = state.homeX;
+          state.y = state.homeY;
+        }
+      }
+
+      function easeInOutCubic(t) {
+        return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+      }
+
+      function easeOutBack(t) {
+        const c1 = 1.70158;
+        const c3 = c1 + 1;
+        return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
+      }
+
+      function lerp(a, b, t) {
+        return a + (b - a) * t;
+      }
+
+      function ensureAudio() {
+        if (!audioCtx) {
+          const AC = window.AudioContext || window.webkitAudioContext;
+          if (AC) audioCtx = new AC();
+        }
+        if (audioCtx && audioCtx.state === "suspended") {
+          audioCtx.resume().catch(() => {});
+        }
+      }
+
+      function playFlipSound() {
+        ensureAudio();
+        if (!audioCtx) return;
+        const t0 = audioCtx.currentTime;
+
+        const whoosh = audioCtx.createOscillator();
+        const whooshGain = audioCtx.createGain();
+        const whooshFilter = audioCtx.createBiquadFilter();
+        whoosh.type = "sawtooth";
+        whoosh.frequency.setValueAtTime(420, t0);
+        whoosh.frequency.exponentialRampToValueAtTime(140, t0 + 0.18);
+        whooshFilter.type = "bandpass";
+        whooshFilter.frequency.setValueAtTime(900, t0);
+        whooshFilter.Q.value = 0.7;
+        whooshGain.gain.setValueAtTime(0.0001, t0);
+        whooshGain.gain.exponentialRampToValueAtTime(0.12, t0 + 0.02);
+        whooshGain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.22);
+        whoosh.connect(whooshFilter);
+        whooshFilter.connect(whooshGain);
+        whooshGain.connect(audioCtx.destination);
+        whoosh.start(t0);
+        whoosh.stop(t0 + 0.24);
+
+        const coo = audioCtx.createOscillator();
+        const cooGain = audioCtx.createGain();
+        coo.type = "sine";
+        coo.frequency.setValueAtTime(520, t0 + 0.05);
+        coo.frequency.exponentialRampToValueAtTime(380, t0 + 0.28);
+        cooGain.gain.setValueAtTime(0.0001, t0 + 0.05);
+        cooGain.gain.exponentialRampToValueAtTime(0.09, t0 + 0.08);
+        cooGain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.32);
+        coo.connect(cooGain);
+        cooGain.connect(audioCtx.destination);
+        coo.start(t0 + 0.05);
+        coo.stop(t0 + 0.34);
+
+        const chirp = audioCtx.createOscillator();
+        const chirpGain = audioCtx.createGain();
+        chirp.type = "triangle";
+        chirp.frequency.setValueAtTime(880, t0 + 0.12);
+        chirp.frequency.exponentialRampToValueAtTime(1180, t0 + 0.2);
+        chirpGain.gain.setValueAtTime(0.0001, t0 + 0.12);
+        chirpGain.gain.exponentialRampToValueAtTime(0.05, t0 + 0.14);
+        chirpGain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.26);
+        chirp.connect(chirpGain);
+        chirpGain.connect(audioCtx.destination);
+        chirp.start(t0 + 0.12);
+        chirp.stop(t0 + 0.28);
+      }
+
+      function spawnBurst(x, y) {
+        for (let i = 0; i < 14; i += 1) {
+          const angle = (Math.PI * 2 * i) / 14 + Math.random() * 0.4;
+          const speed = 60 + Math.random() * 140;
+          state.particles.push({
+            x,
+            y,
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed - 40,
+            life: 0,
+            maxLife: 0.45 + Math.random() * 0.4,
+            size: 2 + Math.random() * 3,
+            kind: "sparkle",
+            rot: Math.random() * Math.PI,
+            spin: (Math.random() - 0.5) * 8,
+            hue: 35 + Math.random() * 40,
+          });
+        }
+        for (let i = 0; i < 6; i += 1) {
+          const angle = -Math.PI / 2 + (Math.random() - 0.5) * 1.8;
+          const speed = 40 + Math.random() * 90;
+          state.particles.push({
+            x,
+            y,
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed,
+            life: 0,
+            maxLife: 0.7 + Math.random() * 0.5,
+            size: 5 + Math.random() * 5,
+            kind: "feather",
+            rot: Math.random() * Math.PI,
+            spin: (Math.random() - 0.5) * 4,
+            hue: 210 + Math.random() * 30,
+          });
+        }
+      }
+
+      function updateParticles(dt) {
+        for (let i = state.particles.length - 1; i >= 0; i -= 1) {
+          const p = state.particles[i];
+          p.life += dt;
+          p.x += p.vx * dt;
+          p.y += p.vy * dt;
+          p.vy += 180 * dt;
+          p.vx *= 0.98;
+          p.rot += p.spin * dt;
+          if (p.life >= p.maxLife) state.particles.splice(i, 1);
+        }
+      }
+
+      function drawParticles() {
+        for (const p of state.particles) {
+          const alpha = 1 - p.life / p.maxLife;
+          ctx.save();
+          ctx.translate(p.x, p.y);
+          ctx.rotate(p.rot);
+          if (p.kind === "sparkle") {
+            ctx.fillStyle = `hsla(${p.hue}, 90%, 65%, ${alpha})`;
+            ctx.beginPath();
+            ctx.moveTo(0, -p.size);
+            ctx.lineTo(p.size * 0.35, 0);
+            ctx.lineTo(0, p.size);
+            ctx.lineTo(-p.size * 0.35, 0);
+            ctx.closePath();
+            ctx.fill();
+          } else {
+            ctx.fillStyle = `hsla(${p.hue}, 35%, 72%, ${alpha * 0.9})`;
+            ctx.beginPath();
+            ctx.ellipse(0, 0, p.size * 0.35, p.size, 0, 0, Math.PI * 2);
+            ctx.fill();
+          }
+          ctx.restore();
+        }
+      }
+
+      function drawNest(cx, cy) {
+        const scale = Math.min(window.innerWidth, window.innerHeight) / 900;
+        const s = Math.max(0.75, Math.min(1.35, scale));
+        ctx.save();
+        ctx.translate(cx, cy);
+
+        ctx.fillStyle = "rgba(0,0,0,0.18)";
+        ctx.beginPath();
+        ctx.ellipse(0, 28 * s, 110 * s, 22 * s, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        const roofGrad = ctx.createLinearGradient(-90 * s, -70 * s, 90 * s, 10 * s);
+        roofGrad.addColorStop(0, "#6b4224");
+        roofGrad.addColorStop(0.5, "#a66a35");
+        roofGrad.addColorStop(1, "#5a3518");
+
+        ctx.fillStyle = roofGrad;
+        ctx.beginPath();
+        ctx.moveTo(-105 * s, -8 * s);
+        ctx.quadraticCurveTo(0, -88 * s, 105 * s, -8 * s);
+        ctx.quadraticCurveTo(0, -28 * s, -105 * s, -8 * s);
+        ctx.fill();
+
+        ctx.strokeStyle = "rgba(255,220,160,0.25)";
+        ctx.lineWidth = 2 * s;
+        ctx.beginPath();
+        ctx.moveTo(-90 * s, -18 * s);
+        ctx.quadraticCurveTo(0, -70 * s, 90 * s, -18 * s);
+        ctx.stroke();
+
+        const bodyGrad = ctx.createLinearGradient(0, -20 * s, 0, 55 * s);
+        bodyGrad.addColorStop(0, "#c48a4a");
+        bodyGrad.addColorStop(0.55, "#8b5a2b");
+        bodyGrad.addColorStop(1, "#5c3a1e");
+        ctx.fillStyle = bodyGrad;
+        roundRect(-95 * s, -12 * s, 190 * s, 70 * s, 14 * s);
+        ctx.fill();
+
+        ctx.fillStyle = "rgba(40, 22, 10, 0.55)";
+        roundRect(-55 * s, -2 * s, 110 * s, 42 * s, 18 * s);
+        ctx.fill();
+
+        ctx.fillStyle = "#d4a574";
+        for (let i = -3; i <= 3; i += 1) {
+          ctx.fillRect(i * 26 * s - 2 * s, -10 * s, 4 * s, 62 * s);
+        }
+        ctx.fillRect(-92 * s, 18 * s, 184 * s, 5 * s);
+
+        ctx.fillStyle = "#e8c48a";
+        ctx.beginPath();
+        ctx.ellipse(0, 28 * s, 70 * s, 16 * s, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = "#b8793a";
+        ctx.beginPath();
+        ctx.ellipse(-18 * s, 26 * s, 18 * s, 7 * s, -0.3, 0, Math.PI * 2);
+        ctx.ellipse(16 * s, 28 * s, 22 * s, 8 * s, 0.2, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.restore();
+      }
+
+      function roundRect(x, y, w, h, r) {
+        ctx.beginPath();
+        ctx.moveTo(x + r, y);
+        ctx.arcTo(x + w, y, x + w, y + h, r);
+        ctx.arcTo(x + w, y + h, x, y + h, r);
+        ctx.arcTo(x, y + h, x, y, r);
+        ctx.arcTo(x, y, x + w, y, r);
+        ctx.closePath();
+      }
+
+      function drawPigeon(px, py, opts) {
+        const {
+          rotation = 0,
+          scaleX = 1,
+          scaleY = 1,
+          wingAngle = 0.3,
+          blink = 0,
+          breath = 0,
+          peek = 0,
+        } = opts;
+        const scale = Math.min(window.innerWidth, window.innerHeight) / 900;
+        const s = Math.max(0.75, Math.min(1.35, scale)) * 1.05;
+
+        ctx.save();
+        ctx.translate(px, py - peek * 18 * s);
+        ctx.rotate(rotation);
+        ctx.scale(scaleX * s, scaleY * s);
+
+        const bodyY = breath * 2;
+
+        ctx.fillStyle = "rgba(0,0,0,0.12)";
+        ctx.beginPath();
+        ctx.ellipse(0, 28, 22, 8, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // left wing
+        ctx.save();
+        ctx.translate(-6, 2 + bodyY);
+        ctx.rotate(-wingAngle);
+        const wingGradL = ctx.createLinearGradient(-4, 0, -34, -10);
+        wingGradL.addColorStop(0, "#9aa7b8");
+        wingGradL.addColorStop(1, "#5e6d82");
+        ctx.fillStyle = wingGradL;
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.quadraticCurveTo(-28, -18, -40, 4);
+        ctx.quadraticCurveTo(-18, 14, 0, 8);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+
+        // body
+        const bodyGrad = ctx.createLinearGradient(-20, -10, 20, 30);
+        bodyGrad.addColorStop(0, "#dfe6ef");
+        bodyGrad.addColorStop(0.45, "#b7c2d1");
+        bodyGrad.addColorStop(1, "#7f8ea3");
+        ctx.fillStyle = bodyGrad;
+        ctx.beginPath();
+        ctx.ellipse(0, 6 + bodyY, 22, 18, -0.15, 0, Math.PI * 2);
+        ctx.fill();
+
+        // belly
+        ctx.fillStyle = "#f3f0ea";
+        ctx.beginPath();
+        ctx.ellipse(2, 12 + bodyY, 12, 10, -0.1, 0, Math.PI * 2);
+        ctx.fill();
+
+        // right wing (front)
+        ctx.save();
+        ctx.translate(4, 0 + bodyY);
+        ctx.rotate(wingAngle * 0.85);
+        const wingGradR = ctx.createLinearGradient(0, 0, 36, -8);
+        wingGradR.addColorStop(0, "#c5ced9");
+        wingGradR.addColorStop(1, "#6d7c91");
+        ctx.fillStyle = wingGradR;
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.quadraticCurveTo(26, -20, 42, 2);
+        ctx.quadraticCurveTo(18, 16, 0, 10);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+
+        // tail
+        ctx.fillStyle = "#6a788c";
+        ctx.beginPath();
+        ctx.moveTo(-18, 10 + bodyY);
+        ctx.quadraticCurveTo(-38, 4 + bodyY, -34, 20 + bodyY);
+        ctx.quadraticCurveTo(-24, 18 + bodyY, -14, 16 + bodyY);
+        ctx.closePath();
+        ctx.fill();
+
+        // head
+        const headGrad = ctx.createRadialGradient(-2, -18, 2, 0, -16, 16);
+        headGrad.addColorStop(0, "#eef2f7");
+        headGrad.addColorStop(1, "#9aa8ba");
+        ctx.fillStyle = headGrad;
+        ctx.beginPath();
+        ctx.arc(8, -14 + bodyY * 0.5, 14, 0, Math.PI * 2);
+        ctx.fill();
+
+        // cheek
+        ctx.fillStyle = "rgba(255, 170, 150, 0.35)";
+        ctx.beginPath();
+        ctx.ellipse(14, -10 + bodyY * 0.5, 4, 3, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // eye
+        ctx.fillStyle = "#1c2430";
+        if (blink > 0.55) {
+          ctx.lineWidth = 2;
+          ctx.strokeStyle = "#1c2430";
+          ctx.beginPath();
+          ctx.moveTo(12, -16 + bodyY * 0.5);
+          ctx.lineTo(18, -16 + bodyY * 0.5);
+          ctx.stroke();
+        } else {
+          ctx.beginPath();
+          ctx.arc(15, -16 + bodyY * 0.5, 3.2, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = "#fff";
+          ctx.beginPath();
+          ctx.arc(16.2, -17.2 + bodyY * 0.5, 1.1, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        // beak
+        ctx.fillStyle = "#f0a040";
+        ctx.beginPath();
+        ctx.moveTo(20, -13 + bodyY * 0.5);
+        ctx.lineTo(30, -11 + bodyY * 0.5);
+        ctx.lineTo(20, -8 + bodyY * 0.5);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = "#d4842e";
+        ctx.beginPath();
+        ctx.moveTo(20, -11 + bodyY * 0.5);
+        ctx.lineTo(27, -10.2 + bodyY * 0.5);
+        ctx.lineTo(20, -9 + bodyY * 0.5);
+        ctx.closePath();
+        ctx.fill();
+
+        // feet
+        ctx.strokeStyle = "#e0953a";
+        ctx.lineWidth = 2.2;
+        ctx.lineCap = "round";
+        ctx.beginPath();
+        ctx.moveTo(-4, 22 + bodyY);
+        ctx.lineTo(-8, 30 + bodyY);
+        ctx.moveTo(-4, 22 + bodyY);
+        ctx.lineTo(-2, 30 + bodyY);
+        ctx.moveTo(-4, 22 + bodyY);
+        ctx.lineTo(2, 29 + bodyY);
+        ctx.moveTo(8, 22 + bodyY);
+        ctx.lineTo(4, 30 + bodyY);
+        ctx.moveTo(8, 22 + bodyY);
+        ctx.lineTo(10, 30 + bodyY);
+        ctx.moveTo(8, 22 + bodyY);
+        ctx.lineTo(15, 29 + bodyY);
+        ctx.stroke();
+
+        ctx.restore();
+      }
+
+      function showBanner(nickname, count, flip, total) {
+        bannerName.textContent = nickname || "Viewer";
+        bannerCount.textContent = String(count);
+        bannerFlip.textContent = String(flip);
+        bannerTotal.textContent = String(total);
+        bannerEl.classList.add("visible");
+      }
+
+      function hideBanner() {
+        bannerEl.classList.remove("visible");
+      }
+
+      function enqueueGift(nickname, count) {
+        const n = Math.max(1, Math.min(99, Math.floor(Number(count) || 1)));
+        const name = String(nickname || "Viewer").slice(0, 32);
+        giftQueue.push({ nickname: name, count: n });
+        processQueue();
+      }
+
+      function processQueue() {
+        if (isBusy || giftQueue.length === 0) return;
+        isBusy = true;
+        const next = giftQueue.shift();
+        startPerformance(next);
+      }
+
+      function startPerformance(gift) {
+        state.current = gift;
+        state.flipIndex = 0;
+        state.phase = "flyOut";
+        state.phaseT = 0;
+        state.phaseDur = FLY_OUT_DURATION;
+        state.fromX = state.homeX;
+        state.fromY = state.homeY;
+        state.toX = state.airX + (Math.random() - 0.5) * 40;
+        state.toY = state.airY;
+        state.nestPeek = 0;
+        showBanner(gift.nickname, gift.count, 0, gift.count);
+        ensureAudio();
+      }
+
+      function beginFlip() {
+        const gift = state.current;
+        if (!gift) return;
+        state.phase = "flip";
+        state.phaseT = 0;
+        state.phaseDur = FLIP_DURATION;
+        state.flipIndex += 1;
+        showBanner(gift.nickname, gift.count, state.flipIndex, gift.count);
+        playFlipSound();
+        spawnBurst(state.x, state.y);
+      }
+
+      function beginFlyHome() {
+        state.phase = "flyHome";
+        state.phaseT = 0;
+        state.phaseDur = FLY_HOME_DURATION;
+        state.fromX = state.x;
+        state.fromY = state.y;
+        state.toX = state.homeX;
+        state.toY = state.homeY;
+      }
+
+      function finishPerformance() {
+        state.phase = "idle";
+        state.current = null;
+        state.flipIndex = 0;
+        state.rotation = 0;
+        state.scaleX = 1;
+        state.scaleY = 1;
+        state.x = state.homeX;
+        state.y = state.homeY;
+        state.nestPeek = 0.15;
+        hideBanner();
+        isBusy = false;
+        processQueue();
+      }
+
+      function updateIdle(dt, now) {
+        state.breath = Math.sin(now * 0.003) * 1;
+        state.wingAngle = 0.22 + Math.sin(now * 0.004) * 0.04;
+        state.nestPeek = 0.12 + Math.sin(now * 0.0022) * 0.04;
+        const blinkCycle = (now % 3200) / 3200;
+        state.blink = blinkCycle > 0.92 ? (blinkCycle - 0.92) / 0.08 : 0;
+        state.rotation = Math.sin(now * 0.0015) * 0.03;
+        state.scaleX = 1;
+        state.scaleY = 1;
+        state.x = state.homeX;
+        state.y = state.homeY;
+      }
+
+      function updateFlyOut(t) {
+        const e = easeOutBack(Math.min(1, t));
+        state.x = lerp(state.fromX, state.toX, e);
+        state.y = lerp(state.fromY, state.toY, easeInOutCubic(t));
+        state.wingAngle = 0.15 + Math.sin(t * Math.PI * 8) * 0.55;
+        state.rotation = Math.sin(t * Math.PI * 2) * 0.2;
+        state.scaleX = 1 + Math.sin(t * Math.PI) * 0.08;
+        state.scaleY = 1 - Math.sin(t * Math.PI) * 0.06;
+        state.nestPeek = 0;
+        state.blink = 0;
+        state.breath = 0;
+      }
+
+      function updateFlip(t) {
+        const spin = t * Math.PI * 2;
+        state.rotation = -spin;
+        const squash = Math.sin(t * Math.PI);
+        state.scaleX = 1 + squash * 0.22;
+        state.scaleY = 1 - squash * 0.18;
+        state.wingAngle = 0.1 + Math.abs(Math.sin(t * Math.PI * 2)) * 0.9;
+        state.x = state.toX + Math.sin(t * Math.PI * 2) * 18;
+        state.y = state.toY + Math.sin(t * Math.PI) * -28;
+        state.blink = 0;
+        state.breath = 0;
+      }
+
+      function updateFlyHome(t) {
+        const e = easeInOutCubic(t);
+        state.x = lerp(state.fromX, state.toX, e);
+        state.y = lerp(state.fromY, state.toY, e);
+        state.wingAngle = 0.2 + Math.sin(t * Math.PI * 6) * 0.35 * (1 - t);
+        state.rotation = lerp(state.rotation % (Math.PI * 2), 0, e);
+        state.scaleX = lerp(state.scaleX, 1, e);
+        state.scaleY = lerp(state.scaleY, 1, e);
+        state.nestPeek = e * 0.15;
+      }
+
+      function update(dt, now) {
+        if (state.phase === "idle") {
+          updateIdle(dt, now);
+        } else {
+          state.phaseT += dt;
+          const t = Math.min(1, state.phaseT / state.phaseDur);
+          if (state.phase === "flyOut") {
+            updateFlyOut(t);
+            if (t >= 1) beginFlip();
+          } else if (state.phase === "flip") {
+            updateFlip(t);
+            if (t >= 1) {
+              const gift = state.current;
+              if (gift && state.flipIndex < gift.count) {
+                beginFlip();
+              } else {
+                beginFlyHome();
+              }
+            }
+          } else if (state.phase === "flyHome") {
+            updateFlyHome(t);
+            if (t >= 1) finishPerformance();
+          }
+        }
+        updateParticles(dt);
+      }
+
+      function draw(now) {
+        const w = window.innerWidth;
+        const h = window.innerHeight;
+        ctx.clearRect(0, 0, w, h);
+        drawNest(state.homeX, state.homeY);
+        drawParticles();
+        const hideInNest = state.phase === "idle";
+        drawPigeon(state.x, state.y, {
+          rotation: state.rotation,
+          scaleX: state.scaleX,
+          scaleY: state.scaleY,
+          wingAngle: state.wingAngle,
+          blink: state.blink,
+          breath: state.breath,
+          peek: hideInNest ? state.nestPeek : 0.35,
+        });
+      }
+
+      let last = performance.now();
+      function frame(now) {
+        const rawDt = (now - last) / 1000;
+        const dt = Math.min(0.033, rawDt);
+        last = now;
+        update(dt, now);
+        draw(now);
+        requestAnimationFrame(frame);
+      }
+
+      function setWsStatus(connected) {
+        wsDot.classList.toggle("on", connected);
+        wsLabel.textContent = connected ? "Connected" : "Disconnected";
+      }
+
+      let socket = null;
+      let reconnectTimer = null;
+
+      function connectWs() {
+        if (socket && (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING)) {
+          return;
+        }
+        try {
+          socket = new WebSocket(WS_URL);
+        } catch (err) {
+          setWsStatus(false);
+          scheduleReconnect();
+          return;
+        }
+
+        socket.addEventListener("open", () => {
+          setWsStatus(true);
+          if (reconnectTimer) {
+            clearTimeout(reconnectTimer);
+            reconnectTimer = null;
+          }
+        });
+
+        socket.addEventListener("close", () => {
+          setWsStatus(false);
+          scheduleReconnect();
+        });
+
+        socket.addEventListener("error", () => {
+          setWsStatus(false);
+        });
+
+        socket.addEventListener("message", (event) => {
+          try {
+            const msg = JSON.parse(event.data);
+            handleTikFinityMessage(msg);
+          } catch (_) {
+            // ignore non-JSON
+          }
+        });
+      }
+
+      function scheduleReconnect() {
+        if (reconnectTimer) return;
+        reconnectTimer = setTimeout(() => {
+          reconnectTimer = null;
+          connectWs();
+        }, RECONNECT_MS);
+      }
+
+      function handleTikFinityMessage(msg) {
+        if (!msg || typeof msg !== "object") return;
+        const eventName = msg.event || msg.type || msg.Event;
+        if (String(eventName).toLowerCase() !== "gift") return;
+        const data = msg.data || msg.Data || msg;
+        const nickname =
+          data.nickname ||
+          data.uniqueId ||
+          data.user?.nickname ||
+          data.user?.uniqueId ||
+          "Viewer";
+        const count = data.repeatCount || data.repeat_count || data.giftCount || data.diamondCount || 1;
+        enqueueGift(nickname, count);
+      }
+
+      function togglePanel() {
+        panelHidden = !panelHidden;
+        panel.classList.toggle("hidden-ui", panelHidden);
+        hideBtn.textContent = panelHidden ? "Show UI (H key)" : "Hide UI (H key)";
+      }
+
+      hideBtn.addEventListener("click", () => {
+        ensureAudio();
+        togglePanel();
+      });
+
+      window.addEventListener("keydown", (e) => {
+        if (e.key === "h" || e.key === "H") {
+          if (e.target && (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA")) return;
+          togglePanel();
+        }
+      });
+
+      document.querySelectorAll("#panel button[data-n]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          ensureAudio();
+          const n = Number(btn.getAttribute("data-n"));
+          enqueueGift("TestViewer", n);
+        });
+      });
+
+      customSend.addEventListener("click", () => {
+        ensureAudio();
+        const n = Number(customN.value);
+        enqueueGift("TestViewer", n);
+      });
+
+      window.addEventListener("pointerdown", () => ensureAudio(), { once: true });
+      window.addEventListener("resize", resize);
+
+      resize();
+      setWsStatus(false);
+      connectWs();
+      requestAnimationFrame(frame);
+    })();
+  </script>
+</body>
+</html>
